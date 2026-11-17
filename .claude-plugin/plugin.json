@@ -1,0 +1,8 @@
+{
+  "name": "ccusage-bar",
+  "version": "0.1.0",
+  "description": "A /ccusage report and a live bar above the prompt: tokens, API value, usage limits and fun stats.",
+  "author": { "name": "SuperCrafterTS" },
+  "license": "MIT",
+  "types": "./types/index.d.ts"
+}
