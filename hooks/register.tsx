@@ -234,16 +234,22 @@ async function report($: EngineInterface): Promise<string> {
   return md.join('\n')
 }
 
+const REFRESH_MS = 10000
 let lastRefresh = 0
+let isRefreshing = false
 
 async function safeRefresh($: EngineInterface, force = false) {
   const now = await $.clock.now()
-  if (!force && now - lastRefresh < 60000) return
+  if (isRefreshing || (!force && now - lastRefresh < REFRESH_MS - 500)) return
   lastRefresh = now
+  isRefreshing = true
   try {
     await refresh($)
+    await update($, tick, n => n + 1)
   } catch (err) {
     $.ui.status(`ccusage-bar: ${String(err).slice(0, 80)}`)
+  } finally {
+    isRefreshing = false
   }
 }
 
@@ -255,16 +261,25 @@ export const register: Register = on => {
       argumentHint: '[bar | refresh | daily | monthly | session | blocks ...]',
     })
     void safeRefresh($)
-    $.clock.every(5 * 60000, () => void safeRefresh($))
+    $.clock.every(REFRESH_MS, () => void safeRefresh($))
     return next(e)
   })
 
-  on('turn.complete', async ($, e, next) => {
-    const u = 'usage' in e ? e.usage : undefined
+  // Every model response (each step of a turn, subagents too): add its tokens
+  // and redraw, so the session's tokens and API cost move during a turn.
+  on('turn.step', async function* ($, e, next) {
+    const r = yield* next(e)
+    const u = r.usage
     if (u) {
       const add = u.input_tokens + u.output_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens
-      await update($, live, (l: Live) => ({ tokens: l.tokens + add, turns: l.turns + 1, model: u.model || l.model }))
+      await update($, live, (l: Live) => ({ ...l, tokens: l.tokens + add, model: e.agentId ? l.model || u.model : u.model || l.model }))
+      await update($, tick, n => n + 1)
     }
+    return r
+  })
+
+  on('turn.complete', async ($, e, next) => {
+    await update($, live, (l: Live) => ({ ...l, turns: l.turns + 1 }))
     void safeRefresh($)
     return next(e)
   })
