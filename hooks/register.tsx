@@ -98,10 +98,13 @@ function streakOf(days: Set<string>, now: number) {
 
 async function refresh($: EngineInterface) {
   const now = await $.clock.now()
-  const [daily, blocks] = await Promise.all([
+  const [daily, blocks, sessions, sessionId] = await Promise.all([
     ccusageJson<Row>($, ['daily'], 'daily'),
     ccusageJson<RawBlock>($, ['blocks', '--active'], 'blocks'),
+    ccusageJson<Row>($, ['session'], 'session'),
+    $.session.id(),
   ])
+  const mine = sessions.find(r => r.period === sessionId)
   const today = localDate(now)
   const month = today.slice(0, 7)
   const todayRow = daily.find(d => d.period === today)
@@ -130,6 +133,7 @@ async function refresh($: EngineInterface) {
     streak: streakOf(new Set(daily.map(d => d.period)), now),
     activeDays: daily.length,
     block,
+    session: mine ? { tokens: mine.totalTokens, usd: mine.totalCost } : null,
     updatedAt: now,
   }
   await update($, summary, () => next)
@@ -163,7 +167,7 @@ async function report($: EngineInterface): Promise<string> {
   md.push('### This session (live)')
   md.push(
     `- **API value:** ${use.cost ? usd(use.cost.usd) : 'n/a'}${l.model ? ` at ${shortModel(l.model)} prices` : ''}`,
-    `- **Tokens:** ${num(l.tokens)} over ${l.turns} turn${l.turns === 1 ? '' : 's'}`,
+    `- **Tokens:** ${num(Math.max(l.tokens, (await read($, summary))?.session?.tokens ?? 0))} over ${l.turns} turn${l.turns === 1 ? '' : 's'}`,
     `- **Context window:** ${use.context.percent ?? 0}% of ${tok(use.context.window)}`,
     '',
   )
@@ -339,7 +343,7 @@ export const register: Register = on => {
       <Box flexDirection="column">
         <Text wrap="truncate-end">
           <Text color="claude" bold>◆ </Text>
-          <Text bold>{tok(l.tokens)}</Text>
+          <Text bold>{tok(Math.max(l.tokens, s?.session?.tokens ?? 0))}</Text>
           <Text dimColor> tok · </Text>
           <Text bold color="success">{use.cost ? usd(use.cost.usd) : '$—'}</Text>
           <Text dimColor> API{l.model ? ` (${shortModel(l.model)})` : ''}</Text>

@@ -13,7 +13,7 @@ const blocks = {
   blocks: [{ isActive: true, costUSD: 7.32, totalTokens: 12700000, startTime: '2026-11-16T22:00:00.000Z', endTime: '2026-11-17T03:00:00.000Z', burnRate: { costPerHour: 2.7, tokensPerMinute: 78000 }, projection: { totalCost: 11.15, totalTokens: 19000000, remainingMinutes: 85 } }],
 }
 const monthly = { monthly: [{ period: '2026-11', inputTokens: 30, outputTokens: 120000, cacheCreationTokens: 3000, cacheReadTokens: 5900000, totalTokens: 6023030, totalCost: 8.7, modelsUsed: ['claude-opus-5-5'] }] }
-const session = { session: [{ period: '0000aaaa-test', inputTokens: 1, outputTokens: 2, cacheCreationTokens: 3, cacheReadTokens: 4, totalTokens: 10, totalCost: 0.5, modelsUsed: ['claude-opus-5-5'], metadata: { lastActivity: '2026-11-16T20:00:00.000Z' } }] }
+const session = { session: [{ period: '0000aaaa-test', inputTokens: 1, outputTokens: 2, cacheCreationTokens: 3, cacheReadTokens: 4, totalTokens: 2500000, totalCost: 0.5, modelsUsed: ['claude-opus-5-5'], metadata: { lastActivity: '2026-11-16T20:00:00.000Z' } }] }
 
 const band = (surface: 'terminal' | 'desktop') =>
   ({
@@ -25,6 +25,7 @@ const band = (surface: 'terminal' | 'desktop') =>
 
 function engine(on: any, runs: string[][]) {
   on('clock.now', () => ({ value: NOW }))
+  on('session.id', () => ({ value: '0000aaaa-test' }))
   on('clock.every', () => ({ value: { cancel() {} } }))
   on('command.register', () => ({ value: { command: 'ccusage' } }))
   on('ui.status', () => ({ value: undefined }))
@@ -58,6 +59,7 @@ test('the bar shows session tokens, API value, limits and fun stats', async ($, 
     const ui = await $.ui.mount(band(surface))
     const texts = (await ui.findAll({ type: 'Text' })).map((t: { text: string }) => t.text).join('|')
     expect(texts).toContain('$6.70')
+    expect(texts).toContain('2.5M')
     expect(texts).toContain('38%')
     expect(texts).toContain('Week')
     expect(texts).toContain('Month $8.70')

@@ -19,6 +19,7 @@ export type Summary = {
   streak: number
   activeDays: number
   block: Block | null
+  session?: { tokens: number; usd: number } | null
   updatedAt: number
 }
 
